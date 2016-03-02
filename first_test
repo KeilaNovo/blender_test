@@ -1,0 +1,67 @@
+import bpy
+import math
+import sys
+
+# We search and delete the cube that Blender puts by default 
+for ob in bpy.context.scene.objects:
+    ob.select = ob.type == 'MESH' and ob.name.startswith("Cube")
+    
+bpy.ops.object.delete()
+
+# We paint the loaded objects with the dimensions and the positions that the exercise indicates
+
+esfera_cargada = bpy.ops.mesh.primitive_uv_sphere_add(size=1.8, location=(1, 0, 0))
+plano_cargado = bpy.ops.mesh.primitive_plane_add(location=(2, 0, 0), radius=3, rotation=(0, math.pi/2, 0))
+hilo_cargado = bpy.ops.mesh.primitive_cylinder_add(radius=0.02, location=(0,0,0), rotation=(math.pi/2, 0,-math.pi/4), depth=7)
+punto_campo = bpy.ops.mesh.primitive_uv_sphere_add(size=0.01, location=(1.5, 0.5, 0))
+
+scene = bpy.data.scenes["Scene"]
+
+# Path to the picture
+scene.render.filepath = '/path/al/dibujo del problema.png'
+
+# We render and we save the picture
+scene.camera.rotation_mode = 'XYZ'
+scene.camera.rotation_euler[2] = 5.5
+scene.camera.location.x = -6
+scene.objects['Lamp'].location.x = -1
+bpy.ops.render.render(write_still=True)
+
+#Now, in the same Python console in Blender, calculate the total field indicated in the exercise  (x equals 1.5 m, y equals 0.5 m), pero esta vez, incorpora las unidades en tu cálculo usando el paquete Pint. El siguiente código hace esto pero sin dimensiones. Lo que se pide es que lo reescribas para las tenga:
+
+import math 
+
+# Data problem, but without units
+e0 = 8.85418781762e-12
+k = 1/(4*math.pi*e0)
+plano_sigma = 2
+hilo_lambda = 4
+esfera_rho = 4
+radio_esfera = 0.8
+
+# Method to calcute the distance from the point, that the problem ask, to the loaded thread
+
+def distancia_punto_recta(x, y, x0, y0, x1, y1):
+    return abs((x*(y0 - y1) + y*(x1 - x0) + (x0*y1 - x1*y0))/math.sqrt((x1 - x0)**2 + (y1 - y0)**2))
+ 
+# method, that we are going to use to calcule the distance 
+# between the center of the sphere to the aplied for point
+def distancia_entre_puntos(x1,y1,x2,y2):
+    return abs(math.hypot(x2 - x1, y2 - y1))
+
+# method to calculate the total field( created by the sphere, the thread and the plane) 
+# in the apllied for point (1.5, 0.5)
+def intensidad_campo_total(x,y):
+    campo_plano = (2*math.pi*k*plano_sigma)
+    d_hilo_punto = distancia_punto_recta(x, y, 0, 0, 1, 1)
+    d_hilo_punto = 0.2 if d_hilo_punto <= 0.2 else d_hilo_punto
+    campo_hilo = (2*k*hilo_lambda/d_hilo_punto)
+    d_punto_centro_esfera = distancia_entre_puntos(x,y, 1,0)
+    
+    # For the field of the sphere, we have to know if the point is in or out the sphere
+    campo_esfera = esfera_rho*d_punto_centro_esfera/(3*e0) if d_punto_centro_esfera <= radio_esfera else esfera_rho*radio_esfera**3*d_punto_centro_esfera/(3*e0*d_punto_centro_esfera**3) 
+    campo = campo_esfera + campo_plano + campo_hilo
+    return campo
+
+# We calculate the intensity in the point that the exercise ask for 
+intensidad_campo_total(1.5, .5)
